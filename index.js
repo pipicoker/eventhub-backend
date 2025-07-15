@@ -19,9 +19,20 @@ const stripeRouter = require('./routes/stripeRouter')
 
 const app = express();
 // ✅ Allow requests from frontend
+
+const allowedOrigins = [
+  'http://localhost:8080',
+  'https://attendee-verse.vercel.app',
+];
 app.use(cors({
-  origin: process.env.FRONTEND_URL, 
-  credentials: true,               
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
 }));
 
 
