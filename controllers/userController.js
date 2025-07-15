@@ -1,19 +1,20 @@
 const User = require('../models/usermodel');
 const cloudinary = require('../config/cloudinary');
-const fs = require('fs'); // ✅ Declare only once at the top
 
 exports.updateUser = async (req, res) => {
   try {
     console.log('Updating user avatar...');
     const { id } = req.params;
-    console.log('User ID:', id);
     let avatarUrl = req.body.avatar;
 
     if (req.file) {
-      console.log('File uploaded locally:', req.file.path);
-      console.log('req.file', req.file);
+      console.log('In-memory file:', req.file);
 
-      const uploadResult = await cloudinary.uploader.upload(req.file.path, {
+      // Convert file buffer to Base64 string
+      const base64Image = req.file.buffer.toString('base64');
+      const dataUri = `data:${req.file.mimetype};base64,${base64Image}`;
+
+      const uploadResult = await cloudinary.uploader.upload(dataUri, {
         folder: 'avatars',
         public_id: `${id}_avatar`,
         overwrite: true,
@@ -22,9 +23,6 @@ exports.updateUser = async (req, res) => {
       console.log('✅ Cloudinary upload successful:', uploadResult.secure_url);
 
       avatarUrl = uploadResult.secure_url;
-
-      // ✅ Just use the existing fs
-      fs.unlinkSync(req.file.path);
     }
 
     if (!avatarUrl) {
