@@ -1,6 +1,6 @@
 const User = require('../models/usermodel');
 const cloudinary = require('../config/cloudinary');
-const fs = require('fs');
+const fs = require('fs'); // ✅ Declare only once at the top
 
 exports.updateUser = async (req, res) => {
   try {
@@ -13,19 +13,17 @@ exports.updateUser = async (req, res) => {
       console.log('File uploaded locally:', req.file.path);
       console.log('req.file', req.file);
 
-
       const uploadResult = await cloudinary.uploader.upload(req.file.path, {
         folder: 'avatars',
         public_id: `${id}_avatar`,
         overwrite: true,
       });
 
-      console.log('Cloudinary upload successful:', uploadResult.secure_url);
+      console.log('✅ Cloudinary upload successful:', uploadResult.secure_url);
 
       avatarUrl = uploadResult.secure_url;
 
-      // Delete temp file
-      const fs = require('fs');
+      // ✅ Just use the existing fs
       fs.unlinkSync(req.file.path);
     }
 
@@ -35,13 +33,11 @@ exports.updateUser = async (req, res) => {
     }
 
     const updatedUser = await User.findByIdAndUpdate(id, { avatar: avatarUrl }, { new: true });
-    console.log('User updated successfully');
+    console.log('✅ User updated successfully');
 
     return res.status(200).json({ user: updatedUser });
   } catch (err) {
-    console.error('Error updating user avatar:', err);
-    console.error(err.stack); 
+    console.error('❌ Error updating user avatar:', err);
     return res.status(500).json({ error: 'Failed to update avatar' });
   }
 };
-
