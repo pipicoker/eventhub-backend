@@ -5,11 +5,9 @@ const helmet = require('helmet');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const mongoose = require('mongoose');
-const passport = require('passport');
 const session = require('express-session');
 const mongoStore = require('connect-mongo');
 
-require('./config/passport'); // Import passport configuration
 
 const authRouter = require('./routes/authRouter');
 const eventRouter = require('./routes/eventsRouter');
@@ -51,9 +49,6 @@ app.use(session({
     collectionName: 'sessions',
   }),
 }));
-
-app.use(passport.initialize());
-app.use(passport.session());
 
 
 mongoose.connect(process.env.MONGO_URI)
