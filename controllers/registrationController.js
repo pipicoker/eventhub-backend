@@ -1,38 +1,82 @@
 const Registration = require('../models/registrationModel');
 
 const Event = require('../models/eventModel')
+const nodemailer = require("nodemailer");
+const { generateICS } = require("../utils/generateICS");
 
 exports.registerForEvent = async (req, res) => {
-    try {
-        const {  eventId } = req.params;
-        const userId = req.user.userId; // user ID is stored in req.user by the authentication middleware
+  try {
+    const { eventId } = req.params;
+    const userId = req.user.userId;
 
-        // Validate input
-        if (!userId || !eventId) {
-            return res.status(400).json({ message: 'User ID and Event ID are required.' });
-        }
-
-        // Check if registration already exists
-        const existingRegistration = await Registration.findOne({ userId, eventId });
-        if (existingRegistration) {
-            return res.status(409).json({ message: 'You are already registered for this event.' });
-        }
-
-        // Create new registration
-        const newRegistration = new Registration({ userId: req.user.userId, eventId });
-        await newRegistration.save();
-
-        // increment the registered count
-        await Event.findByIdAndUpdate(eventId, {$inc: {registered: 1}})
-
-        res.status(201).json({ message: 'Successfully registered for the event.', registration: newRegistration });
-        
-    } catch (error) {
-        console.error('Error registering for event:', error);
-        
-        
+    if (!userId || !eventId) {
+      return res.status(400).json({ message: 'User ID and Event ID are required.' });
     }
-}
+
+    const existingRegistration = await Registration.findOne({ userId, eventId });
+    if (existingRegistration) {
+      return res.status(409).json({ message: 'You are already registered for this event.' });
+    }
+
+    const event = await Event.findById(eventId);
+    if (!event) return res.status(404).json({ message: 'Event not found.' });
+
+    const newRegistration = new Registration({ userId, eventId });
+    await newRegistration.save();
+
+    await Event.findByIdAndUpdate(eventId, { $inc: { registered: 1 } });
+
+    // === SEND CONFIRMATION EMAIL ===
+    const user = req.user; // make sure your auth middleware adds name/email
+    const icsContent = await generateICS(
+      event.title,
+      event.description,
+      event.location,
+      new Date(event.date)
+    );
+
+    const transporter = nodemailer.createTransport({
+      service: "gmail", // or use SMTP / SendGrid
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+    });
+
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: user.email,
+      subject: `You're Registered: ${event.title}`,
+      html: `
+        <p>Hello ${user.name || 'there'},</p>
+        <p>You have successfully registered for:</p>
+        <ul>
+          <li><strong>Event:</strong> ${event.title}</li>
+          <li><strong>Date:</strong> ${new Date(event.date).toLocaleString()}</li>
+          <li><strong>Location:</strong> ${event.location}</li>
+        </ul>
+        <p>We've attached a calendar invite for your convenience.</p>
+        <p>See you there!</p>
+      `,
+      attachments: [
+        {
+          filename: `${event.title}.ics`,
+          content: icsContent,
+          contentType: "text/calendar",
+        },
+      ],
+    });
+
+    res.status(201).json({
+      message: 'Successfully registered. Confirmation email sent.',
+      registration: newRegistration
+    });
+
+  } catch (error) {
+    console.error('Error registering for event:', error);
+    res.status(500).json({ message: 'Server error.' });
+  }
+};
 
 exports.getUserRegistrations = async (req, res) => {
   try {
